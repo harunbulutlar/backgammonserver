@@ -39,7 +39,7 @@ class TestClient(TestCase):
 
     def test_asd_connection3(self):
         clients = []
-        for i in range(7, 9):
+        for i in range(7, 10):
             clients.append(ThreadedClient("Client---->" + str(i)))
         for client in clients:
             client.start()
