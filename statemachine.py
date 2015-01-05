@@ -10,36 +10,37 @@ lock = threading.Lock()
 
 
 class StateT(util.LogMixin):
-    def __init__(self):
+    def __init__(self, context):
         util.LogMixin.__init__(self)
-        self.transitions = None
+        self.context = context
+        self.transitions = {RSPERROR.__name__: self}
         self.t0 = -1
 
-    def handle(self, context):
+    def init_transitions(self):
+        pass
+
+    def handle(self):
         if self.t0 is -1:
             self.start_timer()
-        self.__handle__(context)
+        self.__handle__()
 
-    def __handle__(self, context):
+    def __handle__(self):
         assert 0, "run not implemented"
 
-    def next(self, context):
-        key = context.message
-        real_key = key.__class__.__name__
-        if real_key in self.transitions:
-            next_state = self.transitions[real_key]
+    def next(self):
+        key = self.get_transition_key()
+        if key in self.transitions:
+            next_state = self.transitions[key]
             if type(next_state) is not type(self):
                 self.stop_timer()
             return next_state
 
         else:
-            context.message = RSPERROR()
+            self.context.process_message(RSPERROR())
             return self
 
-    def send_message_update_state(self, context):
-        self.logger.info('updating message ' + context.message.__class__.__name__)
-        context.send_message(context.message)
-        context.currentState = self.next(context)
+    def get_transition_key(self):
+        return self.context.message.__class__.__name__
 
     def time_passed(self):
         if self.t0 is not -1:
@@ -55,163 +56,185 @@ class StateT(util.LogMixin):
 
 
 class Initial(StateT):
-    def __handle__(self, context):
-        self.logger.info('Initial')
+    def init_transitions(self):
+        self.transitions[CONNECT.__name__] = self.context.states['connecting']
 
-    def next(self, context):
-        # Lazy initialization:
-        if not self.transitions:
-            self.transitions = {
-                CONNECT.__name__: context.connecting
-            }
-        return StateT.next(self, context)
+    def __handle__(self):
+        self.logger.info('Initial')
 
 
 class Connecting(StateT):
-    def __handle__(self, context):
+    def init_transitions(self):
+        self.transitions[RSPOK.__name__] = self.context.states['connected']
+        self.transitions[RSPINVALID.__name__] = self.context.states['initial']
+
+    def __handle__(self):
         self.logger.info('Connecting')
-        if 'username' not in context.message.body:
-            context.message = RSPERROR()
+        if not self.context.message.body.username:
+            message = RSPERROR()
         else:
-            username = context.message.body['username']
-            for proxy in context.proxies:
+            username = self.context.message.body.username
+            for proxy in self.context.proxies:
                 self.logger.info('proxy name ' + proxy.name)
                 if proxy.name == username:
-                    context.message = RSPINVALID()
+                    message = RSPINVALID()
                     break
             else:
-                context.name = username
-                context.message = RSPOK()
+                self.context.name = username
+                message = RSPOK()
 
-        self.send_message_update_state(context)
-
-    def next(self, context):
-        # Lazy initialization:
-        if not self.transitions:
-            self.transitions = {
-                RSPOK.__name__: context.connected,
-                RSPINVALID.__name__: context.initial
-            }
-        return StateT.next(self, context)
+        self.context.process_message(message)
 
 
 class Connected(StateT):
-    def __handle__(self, context):
-        self.logger.info('Connected')
+    def init_transitions(self):
+        self.transitions[FINDMATCH.__name__] = self.context.states['finding_match']
 
-    def next(self, context):
-        # Lazy initialization:
-        if not self.transitions:
-            self.transitions = {
-                FINDMATCH.__name__: context.finding_match
-            }
-        return StateT.next(self, context)
+    def __handle__(self):
+        self.logger.info('Connected')
 
 
 class FindingMatch(StateT):
-    def __handle__(self, context):
+    def init_transitions(self):
+        self.transitions[RSPMATCHSTART.__name__ + 'first'] = self.context.states['moving']
+        self.transitions[RSPMATCHSTART.__name__] = self.context.states['wait_for_opponent']
+        self.transitions[RSPNOMATCH.__name__] = self.context.states['connected']
+
+    def __handle__(self):
         self.logger.debug('trying lock acquire')
         lock.acquire()
-        if context.matching_proxy is not None:
+        if self.context.matching_proxy is not None:
             self.logger.debug('Already matched')
         elif self.time_passed() >= 60:
             self.logger.info('No match')
-            context.message = RSPNOMATCH()
-            self.send_message_update_state(context)
+            message = RSPNOMATCH()
+            self.context.process_message(message)
         else:
             self.logger.info('Finding Match')
-            self.try_partner_up(context)
+            self.try_partner_up()
 
         self.logger.debug('lock released')
         lock.release()
 
-    def try_partner_up(self, context):
-        for proxy in context.proxies:
+    def try_partner_up(self):
+        for proxy in self.context.proxies:
             self.logger.debug('Current proxy ' + proxy.name)
-            if proxy.name == context.name:
+            if proxy.name == self.context.name:
                 continue
             if type(proxy.currentState) is FindingMatch and proxy.matching_proxy is None:
                 self.logger.debug('found proxy ' + proxy.name)
                 proxy.block = True
-                context.matching_proxy = proxy
-                proxy.matching_proxy = context
+                self.context.matching_proxy = proxy
+                proxy.matching_proxy = self.context
                 message = RSPMATCHSTART()
                 message.randomize()
+
                 message_proxy = copy.deepcopy(message)
                 message_proxy.body.first_player = not message_proxy.body.first_player
                 message_proxy.body.is_white = not message_proxy.body.is_white
-                context.message = message
-                self.send_message_update_state(context)
-                proxy.msgQueue.put(message_proxy.deserialize())
+
+                self.context.is_white = message.body.is_white
+                proxy.is_white = message_proxy.body.is_white
+                proxy.board = message.body.board
+                self.context.board = message.body.board
+                self.context.process_message(message)
+                proxy.msgQueue.put(message_proxy)
                 return True
         return False
 
-    def next(self, context):
-        # Lazy initialization:
-        if not self.transitions:
-            self.transitions = {
-                RSPMATCHSTART.__name__: context.matching,
-                RSPNOMATCH.__name__: context.connected
-                # write other states here
-            }
-        return StateT.next(self, context)
+    def get_transition_key(self):
+        if isinstance(self.context.message, RSPMATCHSTART):
+            if self.context.message.body.first_player:
+                return RSPMATCHSTART.__name__ + 'first'
+
+        return StateT.get_transition_key(self)
 
 
 class WaitForOpponent(StateT):
-    def __handle__(self, context):
-        self.logger.info('Waiting move from ' + context.matching_proxy.name)
-        # Find client
-        if isinstance(context.message, MOVE):
-            context.message = RSPMOVE()
-            self.next(context)
-        pass
+    def init_transitions(self):
+        self.transitions[RSPMOVE.__name__] = self.context.states['moving']
+        self.transitions[RSPOPDISCON.__name__] = self.context.states['finding_match']
 
-    def next(self, context):
-        # Lazy initialization:
-        if not self.transitions:
-            self.transitions = {
-                MOVE.__name__: context.matching
-                # write other states here
-            }
-        return StateT.next(self, context)
+    def __handle__(self):
+        if self.context.matching_proxy:
+            self.logger.info('Waiting move from ' + self.context.matching_proxy.name)
 
 
 class Moving(StateT):
-    def __handle__(self, context):
-        self.logger.info(context.name + ' is Moving')
-        # Find client
-        if isinstance(context.message, MOVE):
-            context.message = RSPMOVE()
-            self.next(context)
-        pass
+    def init_transitions(self, ):
+        self.transitions[MOVE.__name__] = self.context.states['moved']
+        self.transitions[WRONGMOVE.__name__] = self.context.states['moved']
+        self.transitions[RSPTIMEOUT.__name__] = self.context.states['connected']
 
-    def next(self, context):
-        # Lazy initialization:
-        if not self.transitions:
-            self.transitions = {
-                MOVE.__name__: context.matching
-                # write other states here
-            }
-        return StateT.next(self, context)
+    def __handle__(self):
+        self.logger.info(self.context.name + ' is Moving')
+        # Find client
+
+        if self.time_passed() >= 60:
+            self.context.matching_proxy.msgQueue.put(RSPOPDISCON())
+
+            self.context.matching_proxy.matching_proxy = None
+            self.context.matching_proxy = None
+            self.context.process_message(RSPTIMEOUT())
+
+
+class Moved(StateT):
+    def init_transitions(self):
+        self.transitions[RSPDICE.__name__] = self.context.states['wait_for_opponent']
+        self.transitions[RSPINVALID.__name__] = self.context.states['moving']
+
+    def __handle__(self):
+        self.logger.info(self.context.name + ' move made')
+        response = RSPMOVE()
+        response.update_from_move(self.context.message)
+        if isinstance(self.context.message, WRONGMOVE):
+            if self.context.wrong_move_flag:
+                self.context.process_message(RSPINVALID)
+            else:
+                self.context.matching_proxy.wrong_move_flag = True
+                response.body.board = self.context.board
+                response.body.wrong_move = True
+                response.body.move = ()
+        else:
+            self.context.wrong_move_flag = False
+            # Find client
+            response.body.board = self.calculate_setup(self.context.message)
+            self.logger.info(response.deserialize())
+            self.context.matching_proxy.board = self.context.board
+            dice = RSPDICE()
+            dice.body.dice = response.body.dice
+            self.context.process_message(dice)
+            self.context.matching_proxy.msgQueue.put(response)
+
+    def calculate_setup(self, move_message):
+        if self.context.is_white:
+            str = 'WHITE'
+        else:
+            str = 'BLACK'
+        move = move_message.body.move
+        self.context.board[move[0][0]] = [str,self.context.board[move[0][0]][1]-1]
+        self.context.board[move[0][1]] = [str,self.context.board[move[0][1]][1]+1]
+        self.context.board[move[1][0]] = [str,self.context.board[move[1][0]][1]-1]
+        self.context.board[move[1][1]] = [str,self.context.board[move[1][1]][1]+1]
+        return self.context.board
+
 
 
 class ThreadedStateMachine(threading.Thread, util.LogMixin):
     def __init__(self):
         threading.Thread.__init__(self)
         util.LogMixin.__init__(self)
-        self.initial = Initial()
-        self.connecting = Connecting()
-        self.connected = Connected()
-        self.finding_match = FindingMatch()
-        self.wait_for_opponent = WaitForOpponent()
-        self.moving = Moving()
+        self.states = {
+            'initial': Initial(self),
+            'connecting': Connecting(self),
+            'connected': Connected(self),
+            'finding_match': FindingMatch(self),
+            'wait_for_opponent': WaitForOpponent(self),
+            'moving': Moving(self),
+            'moved': Moved(self),
+        }
+        for key, state in self.states.iteritems():
+            state.init_transitions()
 
-        self.currentState = self.initial
-        self.currentState.handle(self)
-        #
-        # # Template method:
-        # def run(self):
-        # self.currentState = self.currentState.next()
-        #     self.currentState.run()
-
-
+        self.currentState = self.states['initial']
+        self.currentState.handle()

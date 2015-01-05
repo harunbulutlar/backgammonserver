@@ -8,6 +8,7 @@ import time
 import socket
 import sockethandler
 
+
 class ClientProxy(ThreadedStateMachine, sockethandler.CommonSocketHandler):
     def __init__(self, client_ip, client_port, client_socket, proxies):
         ThreadedStateMachine.__init__(self)
@@ -19,15 +20,17 @@ class ClientProxy(ThreadedStateMachine, sockethandler.CommonSocketHandler):
         self.message = messages.EMPTY()
         self.proxies = proxies
         self.matching_proxy = None
+        self.is_white = False
+        self.board = {}
+        self.wrong_move_flag = False
 
     def run(self):
         while True:
             try:
-                data = self.receive_msg()
-                if data:
-                    self.logger.info('Received')
-                    self.logger.debug( "%d bytes: '%s'" % (len(data), data))
-                    self.process_message(data)
+                message = self.receive_msg()
+                if message:
+
+                    self.process_message(message)
                 else:
                     self.logger.debug('connection closed')
                     self.socket.close()
@@ -45,21 +48,22 @@ class ClientProxy(ThreadedStateMachine, sockethandler.CommonSocketHandler):
             except Queue.Empty:
                 self.logger.debug('Queue empty')
                 # short delay, no tight loops
-            self.currentState.handle(self)
+            self.currentState.handle()
             time.sleep(1)
 
-    def process_message(self, data):
-        if data:
-            self.logger.info('data received: ' + data)
-            message = util.parse(data)
-            if message:
-                self.message = message
-                next_state = self.currentState.next(self)
-                self.logger.info(
-                    'changing state from ' + self.currentState.__class__.__name__ + ' to ' + next_state.__class__.__name__)
-                self.currentState = next_state
-            else:
-                self.logger.info(' message is None')
-        else:
-            self.logger.info(' data is None')
+    def process_message(self, message):
+        if not message:
+            self.logger.info('message is None')
+            return
+        self.change_state(message)
 
+        if isinstance(message, messages.RSPMessage):
+            self.logger.info('message received: ' + message.__class__.__name__)
+            self.send_message(message)
+
+    def change_state(self, message):
+        self.message = message
+        next_state = self.currentState.next()
+        self.logger.info(
+            'changing state from ' + self.currentState.__class__.__name__ + ' to ' + next_state.__class__.__name__)
+        self.currentState = next_state
