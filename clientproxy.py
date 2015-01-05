@@ -1,34 +1,65 @@
 __author__ = 'tr1b2669'
 from statemachine import ThreadedStateMachine
 import Queue
-import select
+import messages
+import util
+import errno
+import time
+import socket
+import sockethandler
 
-
-
-
-class ClientProxy(ThreadedStateMachine):
-    def __init__(self, client_ip, client_port, client_socket):
+class ClientProxy(ThreadedStateMachine, sockethandler.CommonSocketHandler):
+    def __init__(self, client_ip, client_port, client_socket, proxies):
         ThreadedStateMachine.__init__(self)
+        sockethandler.CommonSocketHandler.__init__(self, client_socket)
         self.ip = client_ip
         self.port = client_port
-        self.socket = client_socket
-        self.msgQueue = Queue
+        self.socket.setblocking(0)
+        self.msgQueue = Queue.Queue()
         self.message = messages.EMPTY()
-        print "[+] New thread started for " + self.ip + ":" + str(client_port)
+        self.proxies = proxies
+        self.matching_proxy = None
 
-    def __run__(self):
-        inputs = [self.socket, self.msgQueue]
+    def run(self):
         while True:
-            input_ready, output_ready, except_ready = select.select(inputs, [], [], 0)
-            for ready in input_ready:
+            try:
+                data = self.receive_msg()
+                if data:
+                    self.logger.info('Received')
+                    self.logger.debug( "%d bytes: '%s'" % (len(data), data))
+                    self.process_message(data)
+                else:
+                    self.logger.debug('connection closed')
+                    self.socket.close()
+                    break
+            except socket.error, e:
+                if e.args[0] == errno.EWOULDBLOCK:
+                    self.logger.debug('No data yet')
+                else:
+                    print e
+                    break
 
-                if ready == self.socket:
-                    # parse message from raw data
-                    data = self.socket.recv(1024)
+            try:
+                message = self.msgQueue.get_nowait()
+                self.process_message(message)
+            except Queue.Empty:
+                self.logger.debug('Queue empty')
+                # short delay, no tight loops
+            self.currentState.handle(self)
+            time.sleep(1)
 
-                elif ready == self.msgQueue:
-                    pass
-                    # handle incoming messages from another client proxy
-
-
+    def process_message(self, data):
+        if data:
+            self.logger.info('data received: ' + data)
+            message = util.parse(data)
+            if message:
+                self.message = message
+                next_state = self.currentState.next(self)
+                self.logger.info(
+                    'changing state from ' + self.currentState.__class__.__name__ + ' to ' + next_state.__class__.__name__)
+                self.currentState = next_state
+            else:
+                self.logger.info(' message is None')
+        else:
+            self.logger.info(' data is None')
 

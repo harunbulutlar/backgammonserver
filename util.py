@@ -2,13 +2,38 @@ __author__ = 'tr1b2669'
 import re
 import json
 import messages
+import logging
+import sys
+import struct
+ch = logging.StreamHandler(sys.stdout)
+ch.setLevel(logging.INFO)
+formatter = logging.Formatter("%(asctime)s %(threadName)s\%(thread)d: %(message)s")
 
+ch.setFormatter(formatter)
 
 def parse(raw_message):
-    split_value = re.split('(\{.*\})', str(raw_message))
-    first_part = split_value[0].split()
-    json_part = split_value[1]
-    message_class = getattr(messages, first_part[0])
-    message_instance = message_class([first_part[1], json.loads(json_part)])
-    return message_instance
+    if raw_message is None:
+        return None
+    try:
+        json_message = json.loads(raw_message)
+    except ValueError:
+        return None
+    if 'request' in json_message:
+        message_class = getattr(messages, json_message['request'])
+        if message_class:
+            message = message_class()
+            if message.validate_message(json_message):
+                return message
+    return None
 
+
+class LogMixin(object):
+    def __init__(self):
+        self.name = '.'.join([__name__, self.__class__.__name__])
+        self.logger = logging.getLogger(self.name)
+        for handler in self.logger.handlers:
+            if handler == ch:
+                break
+        else:
+            self.logger.addHandler(ch)
+        self.logger.setLevel(logging.DEBUG)

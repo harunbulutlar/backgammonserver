@@ -5,10 +5,30 @@ import messages
 __author__ = 'tr1b2669'
 
 
-class TestClientProxy(TestCase):
-    def test_parse(self):
-        message = util.parse('CONNECT 1234 {"harun":"bulutlar"}')
+class TestParser(TestCase):
+    def test_connect_parse(self):
+        message = util.parse('{"request": "CONNECT", "seq_id": 1234,"body": {"username": "Harun"}}')
 
         self.assertTrue(isinstance(message, messages.CONNECT))
 
-        # TODO add negative test cases for parsing
+    def test_connect_parse_n(self):
+        message = util.parse('{"request": "CONNECT", "seq_id": 1234,"body": {}}')
+
+        self.assertFalse(isinstance(message, messages.CONNECT))
+
+    def test_connect_parse_n2(self):
+        message = util.parse('{"request": "CONNECT", "body": {"username": "Harun"}}')
+
+        self.assertFalse(isinstance(message, messages.CONNECT))
+
+    def test_connect_parse_n3(self):
+        message = util.parse('{"request": "CONNECT",  "seq_id": 1234, "body": {"harun": "Harun"}}')
+
+        self.assertFalse(isinstance(message, messages.CONNECT))
+
+    def test_parse_invalid_json(self):
+        message = util.parse('   asdasd ')
+
+        self.assertFalse(isinstance(message, messages.CONNECT))
+
+
