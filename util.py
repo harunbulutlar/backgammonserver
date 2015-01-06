@@ -3,6 +3,7 @@ import json
 import messages
 import logging
 import sys
+import functools
 ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.INFO)
 formatter = logging.Formatter("%(asctime)s %(thread)d\%(threadName)s: %(message)s")
@@ -24,6 +25,16 @@ def parse(raw_message):
             if message.validate_message(json_message):
                 return message
     return None
+
+
+def synchronized(sync_lock=None):
+    def _decorator(wrapped):
+        @functools.wraps(wrapped)
+        def _wrapper(*args, **kwargs):
+            with sync_lock:
+                return wrapped(*args, **kwargs)
+        return _wrapper
+    return _decorator
 
 
 class LogMixin(object):

@@ -2,6 +2,7 @@ __author__ = 'tr1b2669'
 import struct
 import util
 
+
 class CommonSocketHandler(util.LogMixin):
 
     def __init__(self, common_socket):

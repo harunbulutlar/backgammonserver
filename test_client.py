@@ -49,17 +49,16 @@ class ThreadedClient(threading.Thread, sockethandler.CommonSocketHandler):
             msg = messages.FINDMATCH()
             msg.body.mode = "match"
             self.send_message(msg)
-            msg=self.receive_msg()
-            if isinstance(msg,messages.RSPMATCHSTART):
+            msg = self.receive_msg()
+            if isinstance(msg, messages.RSPMATCHSTART):
                 print 'match starting'
                 if msg.body.first_player:
                     msg = messages.MOVE()
                     msg.body.move = ((8, 4), (6, 4))
                     self.send_message(msg)
-                    msg=self.receive_msg()
+                    # msg = self.receive_msg()
         else:
             print 'not unique name' + message.__class__.__name__
-
 
         while True:
             time.sleep(1)

@@ -2,6 +2,7 @@ __author__ = 'tr1b2669'
 
 import json
 import random
+
 initial_setup = {}
 for i in range(1, 25):
     initial_setup[i] = ['EMPTY', 0]
@@ -13,6 +14,7 @@ initial_setup[13] = ['BLACK', 5]
 initial_setup[17] = ['WHITE', 3]
 initial_setup[19] = ['WHITE', 5]
 initial_setup[24] = ['BLACK', 2]
+
 
 class Body:
     def __init__(self):
@@ -35,11 +37,14 @@ class Body:
             is_valid = True
         return is_valid
 
+
 def json_handler(obj):
     if hasattr(obj, 'supports_json'):
         return obj.supports_json()
     else:
         return None
+
+
 class Message:
     def __init__(self):
         self.seq_id = 0
@@ -63,22 +68,31 @@ class Message:
             is_valid = True
         return is_valid
 
-
-
     def supports_json(self):
         return self.__dict__
 
     def deserialize(self):
         return json.dumps(self, default=json_handler)
 
+
+class InterThreadMessage():
+    def __init__(self):
+        self.message = EMPTY()
+        self.receiver_name = None
+        self.sender_name = None
+
+
+
 class RSPMessage(Message):
     pass
+
 
 class RSPMessageWithBody(RSPMessage):
     def __init__(self):
         RSPMessage.__init__(self)
         self.body = Body()
         pass
+
 
 class MessageWithBody(Message):
     def __init__(self):
@@ -110,6 +124,7 @@ class FINDMATCH(MessageWithBody):
 class WRONGMOVE(Message):
     pass
 
+
 class MOVE(MessageWithBody):
     def __init__(self):
         MessageWithBody.__init__(self)
@@ -131,8 +146,10 @@ class RSPINVALID(RSPMessage):
 class RSPERROR(RSPMessage):
     pass
 
+
 class RSPOPDISCON(RSPMessage):
     pass
+
 
 class RSPTIMEOUT(RSPMessage):
     pass
@@ -180,6 +197,7 @@ class RSPMOVE(RSPMessageWithBody):
 
     def randomize(self):
         self.body.dice = (random.randint(0, 6), random.randint(0, 6))
+
 
 class RSPDICE(RSPMessageWithBody):
     def __init__(self):

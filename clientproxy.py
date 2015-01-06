@@ -1,65 +1,61 @@
 __author__ = 'tr1b2669'
-from statemachine import ThreadedStateMachine
+from statemachine import ThreadedStateMachine, FindingMatch
 import Queue
 import messages
-import util
 import errno
 import time
 import socket
 import sockethandler
+import threading
+import util
 
 
 class ClientProxy(ThreadedStateMachine, sockethandler.CommonSocketHandler):
-    def __init__(self, client_ip, client_port, client_socket, proxies):
+    proxies_lock = threading.Lock()
+    partner_lock = threading.Lock()
+
+    def __init__(self, client_ip, client_port, client_socket, dispatcher):
         ThreadedStateMachine.__init__(self)
         sockethandler.CommonSocketHandler.__init__(self, client_socket)
         self.ip = client_ip
         self.port = client_port
         self.socket.setblocking(0)
-        self.msgQueue = Queue.Queue()
         self.message = messages.EMPTY()
-        self.proxies = proxies
-        self.matching_proxy = None
+        self.dispatcher = dispatcher
+        self.partner_name = None
         self.is_white = False
         self.board = {}
         self.wrong_move_flag = False
 
-    def run(self):
-        while True:
-            try:
-                message = self.receive_msg()
-                if message:
-
-                    self.process_message(message)
-                else:
-                    self.logger.debug('connection closed')
-                    self.socket.close()
-                    break
-            except socket.error, e:
-                if e.args[0] == errno.EWOULDBLOCK:
-                    self.logger.debug('No data yet')
-                else:
-                    print e
-                    break
-
-            try:
-                message = self.msgQueue.get_nowait()
+    def internal_run(self):
+        try:
+            message = self.receive_msg()
+            if message:
                 self.process_message(message)
-            except Queue.Empty:
-                self.logger.debug('Queue empty')
-                # short delay, no tight loops
-            self.currentState.handle()
-            time.sleep(1)
+            else:
+                self.logger.debug('connection closed')
+                self.socket.close()
+                self.done = True
+        except socket.error, e:
+            if e.args[0] == errno.EWOULDBLOCK:
+                self.logger.debug('No data yet')
+            else:
+                print e
+                self.done = True
+        time.sleep(1)
+
+    def message_received(self, message):
+        self.process_message(message)
 
     def process_message(self, message):
         if not message:
             self.logger.info('message is None')
             return
-        self.change_state(message)
 
+        self.logger.info('message received: ' + message.__class__.__name__)
         if isinstance(message, messages.RSPMessage):
-            self.logger.info('message received: ' + message.__class__.__name__)
             self.send_message(message)
+        self.change_state(message)
 
     def change_state(self, message):
         self.message = message
