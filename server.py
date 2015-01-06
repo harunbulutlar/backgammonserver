@@ -3,8 +3,8 @@ import socket
 
 from clientproxy import ClientProxy
 
-host = 'MD1F646C'
-port = 9990
+host = socket.gethostname()
+port = 9991
 tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 tcp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 

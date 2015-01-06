@@ -35,8 +35,8 @@ class ThreadedClient(threading.Thread, sockethandler.CommonSocketHandler):
 
     def run(self):
         self.socket = socket.socket()
-        host = 'MD1F646C'
-        port = 9990
+        host = socket.gethostname()
+        port = 9991
         try:
             self.socket.connect((host, port))
         except Exception, e:
@@ -44,10 +44,23 @@ class ThreadedClient(threading.Thread, sockethandler.CommonSocketHandler):
         msg = messages.CONNECT()
         msg.body.username = self.name
         self.send_message(msg)
+        message = self.receive_msg()
+        if isinstance(message, messages.RSPOK):
+            msg = messages.FINDMATCH()
+            msg.body.mode = "match"
+            self.send_message(msg)
+            msg=self.receive_msg()
+            if isinstance(msg,messages.RSPMATCHSTART):
+                print 'match starting'
+                if msg.body.first_player:
+                    msg = messages.MOVE()
+                    msg.body.move = ((8, 4), (6, 4))
+                    self.send_message(msg)
+                    msg=self.receive_msg()
+        else:
+            print 'not unique name' + message.__class__.__name__
 
-        msg = messages.FINDMATCH()
-        msg.body.mode = "match"
-        self.send_message(msg)
+
         while True:
             time.sleep(1)
             pass
