@@ -1,6 +1,7 @@
 __author__ = 'tr1b2669'
 import socket
 import errno
+import time
 from clientproxy import ClientProxy
 from messagedispatcher import *
 
@@ -17,7 +18,7 @@ tcp_sock.setblocking(0)
 while True:
     try:
         tcp_sock.listen(4)
-        print "\nListening for incoming connections..."
+        # print "\nListening for incoming connections..."
         (client_sock, (ip, port)) = tcp_sock.accept()
         proxy = ClientProxy(ip, port, client_sock, dispatcher)
         dispatcher.register(proxy)
@@ -28,4 +29,5 @@ while True:
         else:
             print e
     dispatcher.dispatch()
+    time.sleep(0.05)
 

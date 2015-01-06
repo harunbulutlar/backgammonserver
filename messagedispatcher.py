@@ -26,11 +26,20 @@ class Dispatcher():
         self.subscribers = [t for t in self.subscribers if not t.done]
         try:
             message = self.queue.get_nowait()
+            for subscriber in self.subscribers:
+                if subscriber.name == message.receiver_name:
+                    print 'queued message to' + subscriber.name
+                    subscriber.queue_message(message)
         except Queue.Empty:
-            print 'dispatcher queue is empty'
+            pass
+            # print 'dispatcher queue is empty'
+
+    @util.synchronized(lock)
+    def is_name_available(self, name):
         for subscriber in self.subscribers:
-            if subscriber.name == message.receiver_name:
-                subscriber.queue_message(message)
+            if subscriber.name == name:
+                return False
+        return True
 
 
     @util.synchronized(lock)
@@ -47,7 +56,9 @@ class Dispatcher():
                 continue
             if type(subscriber.currentState) is FindingMatch and subscriber.partner_name is None:
                 subscriber.partner_name = requesting_partner.name
-                requesting_partner.partner_name = subscriber.partner_name
+                requesting_partner.partner_name = subscriber.name
+                print 'requesting partner name ' + requesting_partner.partner_name
+                print ' subscriber partner name ' + subscriber.partner_name
                 return True
         return False
 

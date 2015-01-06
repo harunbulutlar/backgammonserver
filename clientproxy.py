@@ -1,18 +1,13 @@
 __author__ = 'tr1b2669'
-from statemachine import ThreadedStateMachine, FindingMatch
-import Queue
+from statemachine import ThreadedStateMachine
 import messages
 import errno
-import time
 import socket
 import sockethandler
 import threading
-import util
 
 
 class ClientProxy(ThreadedStateMachine, sockethandler.CommonSocketHandler):
-    proxies_lock = threading.Lock()
-    partner_lock = threading.Lock()
 
     def __init__(self, client_ip, client_port, client_socket, dispatcher):
         ThreadedStateMachine.__init__(self)
@@ -21,11 +16,10 @@ class ClientProxy(ThreadedStateMachine, sockethandler.CommonSocketHandler):
         self.port = client_port
         self.socket.setblocking(0)
         self.message = messages.EMPTY()
-        self.dispatcher = dispatcher
         self.partner_name = None
-        self.is_white = False
-        self.board = {}
+        self.board_info = None
         self.wrong_move_flag = False
+        self.dispatcher = dispatcher
 
     def internal_run(self):
         try:
@@ -35,6 +29,7 @@ class ClientProxy(ThreadedStateMachine, sockethandler.CommonSocketHandler):
             else:
                 self.logger.debug('connection closed')
                 self.socket.close()
+                self.currentState.disconnected()
                 self.done = True
         except socket.error, e:
             if e.args[0] == errno.EWOULDBLOCK:
@@ -42,7 +37,7 @@ class ClientProxy(ThreadedStateMachine, sockethandler.CommonSocketHandler):
             else:
                 print e
                 self.done = True
-        time.sleep(1)
+                self.currentState.disconnected()
 
     def message_received(self, message):
         self.process_message(message)
@@ -53,9 +48,21 @@ class ClientProxy(ThreadedStateMachine, sockethandler.CommonSocketHandler):
             return
 
         self.logger.info('message received: ' + message.__class__.__name__)
-        if isinstance(message, messages.RSPMessage):
-            self.send_message(message)
         self.change_state(message)
+        if isinstance(message, messages.RSPMessage):
+            try:
+                self.send_message(message)
+            except socket.error, e:
+                print e
+                self.currentState.disconnected()
+                self.done = True
+        self.currentState.handle()
+    def send_message_to_partner(self,message):
+        internal_message = messages.InterThreadMessage()
+        internal_message.sender_name = self.name
+        internal_message.receiver_name = self.partner_name
+        internal_message.message = message
+        self.dispatcher.queue_message(internal_message)
 
     def change_state(self, message):
         self.message = message

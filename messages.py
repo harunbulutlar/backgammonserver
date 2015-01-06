@@ -154,20 +154,19 @@ class RSPOPDISCON(RSPMessage):
 class RSPTIMEOUT(RSPMessage):
     pass
 
-
-class RSPMATCHSTART(RSPMessageWithBody):
+class RSPFIRST(RSPMessageWithBody):
     def __init__(self):
         RSPMessageWithBody.__init__(self)
         self.body.opponent = ''
-        self.body.dice = (0, 0)
-        self.body.first_player = False
-        self.body.is_white = False
+        self.body.dice = (random.randint(0, 6), random.randint(0, 6))
+        self.body.is_white = True
         self.body.board = initial_setup
 
-    def randomize(self):
-        self.body.first_player = bool(random.getrandbits(1))
-        self.body.is_white = bool(random.getrandbits(1))
-        self.body.dice = (random.randint(0, 6), random.randint(0, 6))
+class RSPSECOND(RSPFIRST):
+    def __init__(self):
+        RSPFIRST.__init__(self)
+        self.body.is_white = False
+
 
 
 class RSPMATCHOVER(RSPMessageWithBody):
@@ -187,9 +186,9 @@ class RSPNOMATCH(RSPMessage):
 class RSPMOVE(RSPMessageWithBody):
     def __init__(self):
         RSPMessageWithBody.__init__(self)
-        self.body.wrong_move = False
         self.body.board = []
         self.body.move = []
+        self.body.dice = (random.randrange(0, 6), random.randrange(0, 6))
 
     def update_from_move(self, move):
         self.body.move = move.body.move
@@ -197,6 +196,12 @@ class RSPMOVE(RSPMessageWithBody):
 
     def randomize(self):
         self.body.dice = (random.randint(0, 6), random.randint(0, 6))
+
+class RSPWRONGMOVE(RSPMessageWithBody):
+    def __init__(self):
+        RSPMessageWithBody.__init__(self)
+        self.body.board = []
+
 
 
 class RSPDICE(RSPMessageWithBody):
