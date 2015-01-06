@@ -1,5 +1,4 @@
 __author__ = 'tr1b2669'
-import socket
 import struct
 
 
@@ -18,7 +17,7 @@ class CommonSocketHandler():
         return self.receive_all(msg_len)
 
     def receive_all(self, n):
-        # Helper function to recv n bytes or return None if EOF is hit
+        # Helper function to receive n bytes or return None if EOF is hit
         data = ''
         while len(data) < n:
             packet = self.socket.recv(n - len(data))
@@ -27,6 +26,7 @@ class CommonSocketHandler():
             data += packet
         return data
 
+    # noinspection PyAugmentAssignment
     def send_message(self, message):
         msg = message.deserialize()
         msg = struct.pack('>I', len(msg)) + msg

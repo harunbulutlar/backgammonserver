@@ -8,6 +8,7 @@ import time
 import socket
 import sockethandler
 
+
 class ClientProxy(ThreadedStateMachine, sockethandler.CommonSocketHandler):
     def __init__(self, client_ip, client_port, client_socket, proxies):
         ThreadedStateMachine.__init__(self)
@@ -26,7 +27,7 @@ class ClientProxy(ThreadedStateMachine, sockethandler.CommonSocketHandler):
                 data = self.receive_msg()
                 if data:
                     self.logger.info('Received')
-                    self.logger.debug( "%d bytes: '%s'" % (len(data), data))
+                    self.logger.debug("%d bytes: '%s'" % (len(data), data))
                     self.process_message(data)
                 else:
                     self.logger.debug('connection closed')
@@ -56,10 +57,10 @@ class ClientProxy(ThreadedStateMachine, sockethandler.CommonSocketHandler):
                 self.message = message
                 next_state = self.currentState.next(self)
                 self.logger.info(
-                    'changing state from ' + self.currentState.__class__.__name__ + ' to ' + next_state.__class__.__name__)
+                    'changing state from ' + self.currentState.__class__.__name__ +
+                    ' to ' + next_state.__class__.__name__)
                 self.currentState = next_state
             else:
                 self.logger.info(' message is None')
         else:
             self.logger.info(' data is None')
-

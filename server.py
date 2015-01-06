@@ -8,7 +8,7 @@ port = 9990
 tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 tcp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-tcp_sock.bind((host,port))
+tcp_sock.bind((host, port))
 proxies = []
 
 

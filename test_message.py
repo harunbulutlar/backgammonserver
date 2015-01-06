@@ -16,7 +16,7 @@ class TestMessage(TestCase):
     def test_validate_body(self):
         self.fail()
 
-    def test_jsonable(self):
+    def test_support_json(self):
 
         match_start = RSPMATCHSTART()
         match_start.body.first_player = bool(random.getrandbits(1))
@@ -25,6 +25,7 @@ class TestMessage(TestCase):
         match_start.body.board = initial_setup
         msg = match_start.deserialize()
         parsed_again_message = util.parse(msg)
+        self.assertTrue(isinstance(parsed_again_message, RSPMATCHSTART))
         print msg
         self.assertIsNotNone(msg)
 

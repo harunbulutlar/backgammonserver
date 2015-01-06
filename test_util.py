@@ -27,7 +27,7 @@ class TestParser(TestCase):
         self.assertFalse(isinstance(message, messages.CONNECT))
 
     def test_parse_invalid_json(self):
-        message = util.parse('   asdasd ')
+        message = util.parse('   wrong message ')
 
         self.assertFalse(isinstance(message, messages.CONNECT))
 

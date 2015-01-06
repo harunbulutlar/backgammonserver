@@ -2,20 +2,28 @@ __author__ = 'tr1b2669'
 
 import json
 import random
+
 initial_setup = {1: ('WHITE', 2), 6: ('BLACK', 5),
                  8: ('BLACK', 3), 12: ('WHITE', 5),
                  13: ('BLACK', 5), 17: ('WHITE', 3),
                  19: ('WHITE', 5), 24: ('BLACK', 2)}
+
+
 class Body:
     def __init__(self):
         pass
-    def jsonable(self):
+
+    def supports_json(self):
         return self.__dict__
-def ComplexHandler(Obj):
-    if hasattr(Obj, 'jsonable'):
-        return Obj.jsonable()
+
+
+def json_handler(obj):
+    if hasattr(obj, 'supports_json'):
+        return obj.supports_json()
     else:
-        raise TypeError, 'Object of type %s with value of %s is not JSON serializable'
+        return None
+
+
 class Message:
     def __init__(self):
         self.seq_id = 0
@@ -51,12 +59,11 @@ class Message:
                 break
         return body_is_valid
 
-    def jsonable(self):
+    def supports_json(self):
         return self.__dict__
 
     def deserialize(self):
-        return json.dumps(self, default=ComplexHandler)
-
+        return json.dumps(self, default=json_handler)
 
 
 class MessageWithBody(Message):

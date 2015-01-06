@@ -1,15 +1,14 @@
 __author__ = 'tr1b2669'
-import re
 import json
 import messages
 import logging
 import sys
-import struct
 ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.INFO)
-formatter = logging.Formatter("%(asctime)s %(threadName)s\%(thread)d: %(message)s")
+formatter = logging.Formatter("%(asctime)s %(thread)d\%(threadName)s: %(message)s")
 
 ch.setFormatter(formatter)
+
 
 def parse(raw_message):
     if raw_message is None:
