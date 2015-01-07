@@ -5,6 +5,7 @@ from messages import *
 import time
 import util
 import Queue
+import copy
 
 
 class StateT(util.LogMixin):
@@ -148,7 +149,7 @@ class WaitForOpponent(PartneredStates):
 
     def __handle__(self):
         if self.context.board_info is None:
-            self.context.board_info = self.context.message.body
+            self.context.board_info = copy.deepcopy(self.context.message.body)
 
         if self.context.partner_name:
             self.logger.info('Waiting move from ' + self.context.partner_name)
@@ -162,7 +163,7 @@ class Moving(PartneredStates):
 
     def __handle__(self):
         if self.context.board_info is None:
-            self.context.board_info = self.context.message.body
+            self.context.board_info = copy.deepcopy(self.context.message.body)
         self.logger.info(self.context.partner_name + ' will wait for Move')
 
         if self.context.partner_name and self.time_passed() >= 60:
@@ -182,6 +183,7 @@ class Moved(PartneredStates):
         response.update_from_move(self.context.message)
         response.body.board = self.calculate_setup(self.context.message)
         self.context.board_info = response.body.board
+        print'MOVED ' + repr(self.context.board_info)
         self.logger.info(response.deserialize())
         self.context.process_message(response)
         self.context.send_message_to_partner(response)
@@ -262,6 +264,8 @@ class ThreadedStateMachine(threading.Thread, util.LogMixin):
                 self.logger.debug('Queue empty')
                 # short delay, no tight loops
             time.sleep(1)
+            if not self.done:
+                self.currentState.handle()
 
     def internal_run(self):
         pass

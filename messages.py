@@ -162,10 +162,13 @@ class RSPFIRST(RSPMessageWithBody):
         self.body.is_white = True
         self.body.board = initial_setup
 
-class RSPSECOND(RSPFIRST):
+class RSPSECOND(RSPMessageWithBody):
     def __init__(self):
-        RSPFIRST.__init__(self)
+        RSPMessageWithBody.__init__(self)
+        self.body.opponent = ''
+        self.body.dice = (random.randint(0, 6), random.randint(0, 6))
         self.body.is_white = False
+        self.body.board = initial_setup
 
 
 
