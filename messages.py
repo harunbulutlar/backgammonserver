@@ -158,7 +158,7 @@ class RSPFIRST(RSPMessageWithBody):
     def __init__(self):
         RSPMessageWithBody.__init__(self)
         self.body.opponent = ''
-        self.body.dice = (random.randint(0, 6), random.randint(0, 6))
+        self.body.dice = (random.randint(1, 6), random.randint(1, 6))
         self.body.is_white = True
         self.body.board = initial_setup
 
@@ -166,7 +166,7 @@ class RSPSECOND(RSPMessageWithBody):
     def __init__(self):
         RSPMessageWithBody.__init__(self)
         self.body.opponent = ''
-        self.body.dice = (random.randint(0, 6), random.randint(0, 6))
+        self.body.dice = (random.randint(1, 6), random.randint(1, 6))
         self.body.is_white = False
         self.body.board = initial_setup
 
@@ -191,14 +191,14 @@ class RSPMOVE(RSPMessageWithBody):
         RSPMessageWithBody.__init__(self)
         self.body.board = []
         self.body.move = []
-        self.body.dice = (random.randrange(0, 6), random.randrange(0, 6))
+        self.body.dice = (random.randrange(1, 6), random.randrange(1, 6))
 
     def update_from_move(self, move):
         self.body.move = move.body.move
         self.randomize()
 
     def randomize(self):
-        self.body.dice = (random.randint(0, 6), random.randint(0, 6))
+        self.body.dice = (random.randint(1, 6), random.randint(1, 6))
 
 class RSPWRONGMOVE(RSPMessageWithBody):
     def __init__(self):
@@ -211,3 +211,5 @@ class RSPDICE(RSPMessageWithBody):
     def __init__(self):
         RSPMessageWithBody.__init__(self)
         self.body.dice = ()
+    def randomize(self):
+        self.body.dice = (random.randint(1, 6), random.randint(1, 6))

@@ -135,6 +135,7 @@ class FindingMatch(StateT):
 
             message_to_partner = RSPSECOND()
             message_to_partner.body.opponent = self.context.name
+            message_to_partner.body.dice = message.body.dice
             self.context.process_message(message)
             self.context.send_message_to_partner(message_to_partner)
             return True
@@ -150,6 +151,8 @@ class WaitForOpponent(PartneredStates):
     def __handle__(self):
         if self.context.board_info is None:
             self.context.board_info = copy.deepcopy(self.context.message.body)
+        elif isinstance(self.context.message, RSPWRONGMOVE):
+            self.context.board_info.board = copy.deepcopy(self.context.message.body.board)
 
         if self.context.partner_name:
             self.logger.info('Waiting move from ' + self.context.partner_name)
@@ -164,6 +167,9 @@ class Moving(PartneredStates):
     def __handle__(self):
         if self.context.board_info is None:
             self.context.board_info = copy.deepcopy(self.context.message.body)
+        elif isinstance(self.context.message, RSPWRONGMOVE):
+            self.context.board_info.board = copy.deepcopy(self.context.message.body.board)
+
         self.logger.info(self.context.partner_name + ' will wait for Move')
 
         if self.context.partner_name and self.time_passed() >= 60:
@@ -176,17 +182,20 @@ class Moving(PartneredStates):
 class Moved(PartneredStates):
     def init_transitions(self):
         PartneredStates.init_transitions(self)
-        self.transitions[RSPMOVE.__name__] = self.context.states['wait_for_opponent']
+        self.transitions[RSPDICE.__name__] = self.context.states['wait_for_opponent']
 
     def __handle__(self):
-        response = RSPMOVE()
-        response.update_from_move(self.context.message)
-        response.body.board = self.calculate_setup(self.context.message)
-        self.context.board_info = response.body.board
-        print'MOVED ' + repr(self.context.board_info)
-        self.logger.info(response.deserialize())
+        response_to_partner = RSPMOVE()
+        response_to_partner.update_from_move(self.context.message)
+        response_to_partner.body.board = self.calculate_setup(self.context.message)
+        response = RSPDICE()
+        response.randomize()
+        response_to_partner.body.dice = response.body.dice
+        self.context.board_info.board = copy.deepcopy(response_to_partner.body.board)
+        print'MOVED ' + str(self.context.board_info.board)
+        self.logger.info(response_to_partner.deserialize())
         self.context.process_message(response)
-        self.context.send_message_to_partner(response)
+        self.context.send_message_to_partner(response_to_partner)
 
     def calculate_setup(self, move_message):
         board_info = self.context.board_info
@@ -195,12 +204,27 @@ class Moved(PartneredStates):
         else:
             color = 'BLACK'
         move = move_message.body.move
-        board_info.board[move[0][0]] = [color, board_info.board[move[0][0]][1]-1]
-        board_info.board[move[0][1]] = [color, board_info.board[move[0][1]][1]+1]
-        board_info.board[move[1][0]] = [color, board_info.board[move[1][0]][1]-1]
-        board_info.board[move[1][1]] = [color, board_info.board[move[1][1]][1]+1]
+        column00 = move[0][0][0]
+        column01 = move[0][1][0]
+        column10 = move[1][0][0]
+        column11 = move[1][1][0]
+
+        board_info.board[column00] = self.decrement(board_info.board[column00])
+        board_info.board[column01] = self.increment(board_info.board[column01], color)
+        board_info.board[column10] = self.decrement(board_info.board[column10])
+        board_info.board[column11] = self.increment(board_info.board[column11], color)
         return board_info.board
 
+    def decrement(self, pair):
+        if pair[1] - 1 == 0:
+            pair[0] = 'EMPTY'
+        pair[1] -= 1
+        return pair
+
+    def increment(self, pair, color):
+        pair[1] += 1
+        pair[0] = color
+        return pair
 
 class RevertibleMoving(PartneredStates):
     def init_transitions(self):
@@ -224,6 +248,7 @@ class Reverted(PartneredStates):
 
     def __handle__(self):
         message = RSPWRONGMOVE()
+        print'REVERTED ' + str(self.context.board_info.board)
         message.body.board = self.context.board_info.board
         self.context.process_message(message)
         self.context.send_message_to_partner(message)

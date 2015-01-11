@@ -28,7 +28,7 @@ class Dispatcher():
             message = self.queue.get_nowait()
             for subscriber in self.subscribers:
                 if subscriber.name == message.receiver_name:
-                    print 'queued message to' + subscriber.name
+                    # print 'queued message to' + subscriber.name
                     subscriber.queue_message(message)
         except Queue.Empty:
             pass
@@ -51,14 +51,14 @@ class Dispatcher():
         if requesting_partner.partner_name:
             return False
         for subscriber in self.subscribers:
-            print 'Current proxy ' + subscriber.name
+            # print 'Current proxy ' + subscriber.name
             if requesting_partner.name == subscriber.name:
                 continue
             if type(subscriber.currentState) is FindingMatch and subscriber.partner_name is None:
                 subscriber.partner_name = requesting_partner.name
                 requesting_partner.partner_name = subscriber.name
-                print 'requesting partner name ' + requesting_partner.partner_name
-                print ' subscriber partner name ' + subscriber.partner_name
+                # print 'requesting partner name ' + requesting_partner.partner_name
+                # print ' subscriber partner name ' + subscriber.partner_name
                 return True
         return False
 

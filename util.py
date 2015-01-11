@@ -5,7 +5,7 @@ import logging
 import sys
 import functools
 ch = logging.StreamHandler(sys.stdout)
-ch.setLevel(logging.INFO)
+ch.setLevel(logging.WARNING)
 formatter = logging.Formatter("%(asctime)s %(thread)d\%(threadName)s: %(message)s")
 
 ch.setFormatter(formatter)
