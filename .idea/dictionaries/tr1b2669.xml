@@ -3,6 +3,10 @@
     <words>
       <w>asctime</w>
       <w>harun</w>
+      <w>rspdice</w>
+      <w>rspopdiscon</w>
+      <w>rsptimeout</w>
+      <w>wrongmove</w>
     </words>
   </dictionary>
 </component>

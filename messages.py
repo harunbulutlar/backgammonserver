@@ -14,6 +14,8 @@ initial_setup[13] = ['BLACK', 5]
 initial_setup[17] = ['WHITE', 3]
 initial_setup[19] = ['WHITE', 5]
 initial_setup[24] = ['BLACK', 2]
+initial_setup[-25] = ['EMPTY', 0]
+initial_setup[-1] = ['EMPTY', 0]
 
 
 class Body:
@@ -80,7 +82,6 @@ class InterThreadMessage():
         self.message = EMPTY()
         self.receiver_name = None
         self.sender_name = None
-
 
 
 class RSPMessage(Message):
@@ -154,6 +155,7 @@ class RSPOPDISCON(RSPMessage):
 class RSPTIMEOUT(RSPMessage):
     pass
 
+
 class RSPFIRST(RSPMessageWithBody):
     def __init__(self):
         RSPMessageWithBody.__init__(self)
@@ -162,6 +164,7 @@ class RSPFIRST(RSPMessageWithBody):
         self.body.is_white = True
         self.body.board = initial_setup
 
+
 class RSPSECOND(RSPMessageWithBody):
     def __init__(self):
         RSPMessageWithBody.__init__(self)
@@ -169,7 +172,6 @@ class RSPSECOND(RSPMessageWithBody):
         self.body.dice = (random.randint(1, 6), random.randint(1, 6))
         self.body.is_white = False
         self.body.board = initial_setup
-
 
 
 class RSPMATCHOVER(RSPMessageWithBody):
@@ -200,11 +202,11 @@ class RSPMOVE(RSPMessageWithBody):
     def randomize(self):
         self.body.dice = (random.randint(1, 6), random.randint(1, 6))
 
+
 class RSPWRONGMOVE(RSPMessageWithBody):
     def __init__(self):
         RSPMessageWithBody.__init__(self)
         self.body.board = []
-
 
 
 class RSPDICE(RSPMessageWithBody):

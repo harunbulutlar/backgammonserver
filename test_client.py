@@ -70,6 +70,9 @@ class ThreadedClient(threading.Thread, sockethandler.CommonSocketHandler):
                     if isinstance(self.msg, messages.RSPMOVE):
                         self.send_message(messages.WRONGMOVE())
                         print self.msg.deserialize()
+                elif isinstance(message, messages.RSPWRONGMOVE):
+                    self.send_message(messages.WRONGMOVE())
+
 
         else:
             print 'not unique name' + message.__class__.__name__
@@ -77,6 +80,8 @@ class ThreadedClient(threading.Thread, sockethandler.CommonSocketHandler):
         while True:
             time.sleep(1)
             pass
+
+
 class ThreadedClient2(threading.Thread, sockethandler.CommonSocketHandler):
     def __init__(self, name):
         threading.Thread.__init__(self)

@@ -4,7 +4,8 @@ import messages
 import errno
 import socket
 import sockethandler
-import threading
+
+
 
 
 class ClientProxy(ThreadedStateMachine, sockethandler.CommonSocketHandler):
@@ -57,6 +58,7 @@ class ClientProxy(ThreadedStateMachine, sockethandler.CommonSocketHandler):
                 self.currentState.disconnected()
                 self.done = True
         self.currentState.handle()
+
     def send_message_to_partner(self,message):
         internal_message = messages.InterThreadMessage()
         internal_message.sender_name = self.name

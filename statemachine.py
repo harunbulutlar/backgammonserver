@@ -59,7 +59,6 @@ class StateT(util.LogMixin):
 
 
 class PartneredStates(StateT):
-
     def __init__(self, context):
         StateT.__init__(self, context)
 
@@ -87,8 +86,8 @@ class Connecting(StateT):
 
     def __handle__(self):
         self.logger.info('Connecting')
-        if not self.context.message.body.username:
-            message = RSPERROR()
+        if not self.context.message.body or not self.context.message.body.username:
+            message = RSPINVALID()
         else:
             username = self.context.message.body.username
             if not self.context.dispatcher.is_name_available(username):
@@ -107,6 +106,7 @@ class Connected(StateT):
     def __handle__(self):
         if self.context.partner_name:
             self.context.partner_name = None
+            self.context.board_info = None
         self.logger.info('Connected')
 
 
@@ -199,20 +199,15 @@ class Moved(PartneredStates):
 
     def calculate_setup(self, move_message):
         board_info = self.context.board_info
-        if board_info.is_white:
-            color = 'WHITE'
-        else:
-            color = 'BLACK'
-        move = move_message.body.move
-        column00 = move[0][0][0]
-        column01 = move[0][1][0]
-        column10 = move[1][0][0]
-        column11 = move[1][1][0]
 
-        board_info.board[column00] = self.decrement(board_info.board[column00])
-        board_info.board[column01] = self.increment(board_info.board[column01], color)
-        board_info.board[column10] = self.decrement(board_info.board[column10])
-        board_info.board[column11] = self.increment(board_info.board[column11], color)
+        move = move_message.body.move
+        for column in move:
+            board_info.board[column[0][0]] = self.decrement(board_info.board[column[0][0]])
+            if board_info.is_white:
+                    color = 'WHITE'
+            else:
+                    color = 'BLACK'
+            board_info.board[column[1][0]] = self.increment(board_info.board[column[1][0]], color)
         return board_info.board
 
     def decrement(self, pair):
@@ -226,6 +221,7 @@ class Moved(PartneredStates):
         pair[0] = color
         return pair
 
+
 class RevertibleMoving(PartneredStates):
     def init_transitions(self):
         PartneredStates.init_transitions(self)
@@ -234,7 +230,6 @@ class RevertibleMoving(PartneredStates):
         self.transitions[RSPTIMEOUT.__name__] = self.context.states['connected']
 
     def __handle__(self):
-
         if self.context.partner_name and self.time_passed() >= 60:
             self.context.send_message_to_partner(RSPOPDISCON())
             self.partner_name = None
