@@ -32,7 +32,23 @@ class TestClient(TestCase):
             client.start()
         for client in clients:
             client.join()
+    def simple_test(self):
+        asd = SimpleClass()
+        asd.run()
+        asd.run2(asd.harun)
+class SimpleClass():
+    def __init__(self):
+        self.harun = [0,1]
 
+    def run(self):
+        self.harun = [0,1]
+        bulutlar = self.harun
+        bulutlar[0] +=1
+        print bulutlar
+    def run2(self, harun):
+        bulutlar = harun
+        bulutlar[0] +=1
+        print bulutlar
 
 class ThreadedClient(threading.Thread, sockethandler.CommonSocketHandler):
     def __init__(self, name):

@@ -5,8 +5,6 @@ from messages import *
 import time
 import util
 import Queue
-import copy
-
 
 class StateT(util.LogMixin):
     def __init__(self, context):
@@ -109,7 +107,6 @@ class Connected(StateT):
             self.context.board_info = None
         self.logger.info('Connected')
 
-
 class FindingMatch(StateT):
     def init_transitions(self):
         self.transitions[RSPFIRST.__name__] = self.context.states['moving']
@@ -149,10 +146,6 @@ class WaitForOpponent(PartneredStates):
         self.transitions[RSPWRONGMOVE.__name__] = self.context.states['moving']
 
     def __handle__(self):
-        if self.context.board_info is None:
-            self.context.board_info = copy.deepcopy(self.context.message.body)
-        elif isinstance(self.context.message, RSPWRONGMOVE):
-            self.context.board_info.board = copy.deepcopy(self.context.message.body.board)
 
         if self.context.partner_name:
             self.logger.info('Waiting move from ' + self.context.partner_name)
@@ -165,17 +158,10 @@ class Moving(PartneredStates):
         self.transitions[RSPTIMEOUT.__name__] = self.context.states['connected']
 
     def __handle__(self):
-        if self.context.board_info is None:
-            self.context.board_info = copy.deepcopy(self.context.message.body)
-        elif isinstance(self.context.message, RSPWRONGMOVE):
-            self.context.board_info.board = copy.deepcopy(self.context.message.body.board)
 
         self.logger.info(self.context.partner_name + ' will wait for Move')
-
-        if self.context.partner_name and self.time_passed() >= 60:
+        if self.context.partner_name and self.time_passed() >= 3000:
             self.context.send_message_to_partner(RSPOPDISCON())
-
-            self.partner_name = None
             self.context.process_message(RSPTIMEOUT())
 
 
@@ -185,41 +171,17 @@ class Moved(PartneredStates):
         self.transitions[RSPDICE.__name__] = self.context.states['wait_for_opponent']
 
     def __handle__(self):
+        self.context.board_info.update_board()
         response_to_partner = RSPMOVE()
         response_to_partner.update_from_move(self.context.message)
-        response_to_partner.body.board = self.calculate_setup(self.context.message)
+        response_to_partner.body.board = self.context.board_info.calculate_setup(self.context.message)
         response = RSPDICE()
         response.randomize()
         response_to_partner.body.dice = response.body.dice
-        self.context.board_info.board = copy.deepcopy(response_to_partner.body.board)
-        print'MOVED ' + str(self.context.board_info.board)
+        print'MOVED ' + str(response_to_partner.body.board)
         self.logger.info(response_to_partner.deserialize())
         self.context.process_message(response)
         self.context.send_message_to_partner(response_to_partner)
-
-    def calculate_setup(self, move_message):
-        board_info = self.context.board_info
-
-        move = move_message.body.move
-        for column in move:
-            board_info.board[column[0][0]] = self.decrement(board_info.board[column[0][0]])
-            if board_info.is_white:
-                    color = 'WHITE'
-            else:
-                    color = 'BLACK'
-            board_info.board[column[1][0]] = self.increment(board_info.board[column[1][0]], color)
-        return board_info.board
-
-    def decrement(self, pair):
-        if pair[1] - 1 == 0:
-            pair[0] = 'EMPTY'
-        pair[1] -= 1
-        return pair
-
-    def increment(self, pair, color):
-        pair[1] += 1
-        pair[0] = color
-        return pair
 
 
 class RevertibleMoving(PartneredStates):
@@ -230,7 +192,7 @@ class RevertibleMoving(PartneredStates):
         self.transitions[RSPTIMEOUT.__name__] = self.context.states['connected']
 
     def __handle__(self):
-        if self.context.partner_name and self.time_passed() >= 60:
+        if self.context.partner_name and self.time_passed() >= 3000:
             self.context.send_message_to_partner(RSPOPDISCON())
             self.partner_name = None
             self.context.process_message(RSPTIMEOUT())
@@ -243,8 +205,8 @@ class Reverted(PartneredStates):
 
     def __handle__(self):
         message = RSPWRONGMOVE()
-        print'REVERTED ' + str(self.context.board_info.board)
-        message.body.board = self.context.board_info.board
+        message.body.board = self.context.board_info.revert_board()
+        print'REVERTED ' + str(message.body.board)
         self.context.process_message(message)
         self.context.send_message_to_partner(message)
 

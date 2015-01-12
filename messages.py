@@ -2,21 +2,7 @@ __author__ = 'tr1b2669'
 
 import json
 import random
-
-initial_setup = {}
-for i in range(1, 25):
-    initial_setup[i] = ['EMPTY', 0]
-initial_setup[1] = ['WHITE', 2]
-initial_setup[6] = ['BLACK', 5]
-initial_setup[8] = ['BLACK', 3]
-initial_setup[12] = ['WHITE', 5]
-initial_setup[13] = ['BLACK', 5]
-initial_setup[17] = ['WHITE', 3]
-initial_setup[19] = ['WHITE', 5]
-initial_setup[24] = ['BLACK', 2]
-initial_setup[-25] = ['EMPTY', 0]
-initial_setup[-1] = ['EMPTY', 0]
-
+import util
 
 class Body:
     def __init__(self):
@@ -162,7 +148,7 @@ class RSPFIRST(RSPMessageWithBody):
         self.body.opponent = ''
         self.body.dice = (random.randint(1, 6), random.randint(1, 6))
         self.body.is_white = True
-        self.body.board = initial_setup
+        self.body.board = util.initial_setup
 
 
 class RSPSECOND(RSPMessageWithBody):
@@ -171,7 +157,7 @@ class RSPSECOND(RSPMessageWithBody):
         self.body.opponent = ''
         self.body.dice = (random.randint(1, 6), random.randint(1, 6))
         self.body.is_white = False
-        self.body.board = initial_setup
+        self.body.board = util.initial_setup
 
 
 class RSPMATCHOVER(RSPMessageWithBody):
